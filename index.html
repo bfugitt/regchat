@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Atelier Connection</title>
     
     <!-- Reggio Fonts -->
@@ -28,6 +28,8 @@
             --radius-small: 12px;
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Lato', sans-serif;
             background-color: var(--bg-canvas);
@@ -35,11 +37,13 @@
             background-size: 20px 20px;
             color: var(--color-stone);
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            height: 100vh;
+            height: 100dvh; /* Mobile browser support */
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
         }
 
         .hidden { display: none !important; }
@@ -53,11 +57,37 @@
             box-shadow: var(--shadow-soft);
             width: 100%;
             max-width: 900px;
-            height: 85vh;
+            height: 90vh; /* Default for desktop */
             display: flex;
             flex-direction: column;
             overflow: hidden;
             position: relative;
+            transition: all 0.3s ease;
+        }
+
+        /* --- RESPONSIVE: Mobile/Tablet Tweaks --- */
+        @media (max-width: 768px) {
+            body { padding: 0; }
+            .window-container {
+                width: 100%;
+                height: 100%; /* Full screen on mobile */
+                border-radius: 0;
+                border: none;
+            }
+            #user-sidebar {
+                position: absolute;
+                z-index: 100;
+                height: 100%;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                transform: translateX(-100%); /* Hide by default */
+                transition: transform 0.3s ease;
+            }
+            #user-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            /* Prevent zoom on inputs */
+            input, select, textarea { font-size: 16px !important; }
         }
 
         /* --- Login Screen Styling --- */
@@ -68,13 +98,14 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 40px;
+            padding: 20px;
+            overflow-y: auto; /* Allow scrolling if keyboard pops up */
             background: linear-gradient(135deg, #fff 0%, var(--bg-canvas) 100%);
         }
 
         h2 {
             font-family: 'Playfair Display', serif;
-            font-size: 2.5rem;
+            font-size: 2rem;
             color: var(--color-sage);
             margin-bottom: 10px;
         }
@@ -88,12 +119,15 @@
             max-width: 500px;
             font-style: italic;
             color: #666;
-            line-height: 1.6;
+            line-height: 1.5;
+            font-size: 0.9rem;
         }
 
         .kindness-note strong {
             color: var(--color-clay);
             font-family: 'Playfair Display', serif;
+            display: block;
+            margin-top: 5px;
         }
 
         /* Inputs */
@@ -129,12 +163,11 @@
             cursor: pointer;
             transition: transform 0.1s, background-color 0.2s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            -webkit-tap-highlight-color: transparent;
         }
 
-        button:hover {
-            background-color: #6A7F70;
-            transform: translateY(-1px);
-        }
+        button:hover { background-color: #6A7F70; }
+        button:active { transform: scale(0.98); }
 
         .btn-google {
             background-color: #fff;
@@ -142,10 +175,12 @@
             border: 1px solid #ddd;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             margin-bottom: 20px;
+            width: 100%;
+            max-width: 300px;
         }
-        .btn-google:hover { background-color: #f9f9f9; }
 
         .btn-danger {
             background-color: transparent;
@@ -162,23 +197,27 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            width: 100%;
         }
 
         #top-bar {
+            flex-shrink: 0; /* Never shrink */
             height: 60px;
-            background-color: rgba(255,255,255,0.8);
+            background-color: rgba(255,255,255,0.9);
             border-bottom: 1px solid rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 15px;
             font-family: 'Playfair Display', serif;
+            z-index: 10;
         }
 
         #chat-interface {
             display: flex;
-            flex-grow: 1;
-            overflow: hidden;
+            flex-grow: 1; /* Take up all remaining space */
+            overflow: hidden; /* Lock content inside */
+            position: relative;
         }
 
         /* Sidebar */
@@ -191,16 +230,29 @@
             flex-direction: column;
             overflow-y: auto;
         }
+        
+        /* Mobile Toggle Button */
+        #sidebar-toggle {
+            display: none; /* Hidden on desktop */
+            background: none;
+            color: var(--color-stone);
+            box-shadow: none;
+            padding: 5px;
+            margin-right: 10px;
+        }
+        @media (max-width: 768px) {
+            #sidebar-toggle { display: block; }
+        }
 
         .user-item {
-            padding: 10px 15px;
+            padding: 12px 15px; /* Larger touch target */
             border-radius: var(--radius-small);
             cursor: pointer;
             margin-bottom: 5px;
-            transition: background-color 0.2s;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            font-size: 0.95rem;
         }
 
         .user-item:hover { background-color: rgba(255,255,255,0.5); }
@@ -216,6 +268,7 @@
             display: flex;
             flex-direction: column;
             background-color: var(--bg-paper);
+            min-width: 0; /* Flexbox trick for scrolling */
         }
 
         #msg-feed {
@@ -225,11 +278,12 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
         }
 
         /* Message Bubbles */
         .msg {
-            max-width: 70%;
+            max-width: 85%;
             padding: 12px 18px;
             border-radius: 18px;
             font-size: 0.95rem;
@@ -246,41 +300,20 @@
             display: block;
         }
 
-        /* Styles for different message types */
-        
-        /* 1. Standard (Other Students) */
-        .msg.student {
-            background-color: white;
-            color: var(--color-stone);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        /* 2. Self (Me) */
-        .msg.self {
-            background-color: var(--color-sage);
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
+        .msg.student { background-color: white; color: var(--color-stone); align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg.self { background-color: var(--color-sage); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .msg.self .msg-meta { color: rgba(255,255,255,0.9); }
-
-        /* 3. Teacher/Admin */
+        
         .msg.admin {
-            background-color: #FDF3E3; /* Soft cream */
+            background-color: #FDF3E3; 
             border: 1px solid var(--color-clay);
             color: #8D6E63;
-            align-self: center; /* Centered slightly? or just distinct */
-            max-width: 80%;
+            align-self: center;
+            max-width: 90%;
         }
         .msg.admin .msg-meta { color: var(--color-clay); font-family: 'Playfair Display', serif; }
+        .msg.private { border: 1px dashed var(--color-pebble); }
 
-        /* 4. Private DM */
-        .msg.private {
-            border: 1px dashed var(--color-pebble);
-        }
-
-        /* Images in Chat */
         .chat-image {
             max-width: 100%;
             border-radius: 8px;
@@ -289,14 +322,17 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* Input Area */
+        /* Input Area - Fixed at bottom */
         #input-area {
-            padding: 15px 20px;
+            flex-shrink: 0; /* Prevent shrinking */
+            padding: 10px 15px;
             background-color: white;
             border-top: 1px solid rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            /* Safe area for iPhone X home bar */
+            padding-bottom: env(safe-area-inset-bottom, 15px);
         }
 
         #msg-input {
@@ -304,6 +340,7 @@
             margin: 0;
             border: 1px solid #eee;
             background-color: var(--bg-paper);
+            padding: 12px; /* Easy touch */
         }
 
         .icon-btn {
@@ -316,9 +353,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 50%;
         }
-        .icon-btn:hover { background-color: var(--bg-canvas); transform: none; }
-        .icon-btn svg { width: 24px; height: 24px; stroke-width: 2; }
+        .icon-btn:active { background-color: #f0f0f0; }
+        .icon-btn svg { width: 26px; height: 26px; stroke-width: 2; }
 
     </style>
 </head>
@@ -337,23 +375,23 @@
                 <p>Please speak with love, listen with kindness, and share with compassion.</p>
             </div>
             
-            <div id="login-form">
+            <div id="login-form" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
                 
                 <input type="text" id="room-code" placeholder="Frequency (Room Name)">
 
                 <!-- Google Auth Button (Primary) -->
-                <button id="google-btn" onclick="handleGoogleFlow()" class="btn-google" style="margin: 0 auto 15px auto;">
+                <button id="google-btn" onclick="handleGoogleFlow()" class="btn-google">
                     <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                     Sign In with Google
                 </button>
 
                 <!-- Hidden Manual Override -->
-                <div id="manual-login-area" class="hidden" style="margin-top: 20px;">
+                <div id="manual-login-area" class="hidden" style="margin-top: 10px; width: 100%; display: flex; flex-direction: column; align-items: center;">
                     <input type="text" id="username" placeholder="Your Name">
                     
                     <button onclick="login()">Enter Circle</button>
                     
-                    <div id="role-container" class="hidden">
+                    <div id="role-container" class="hidden" style="margin-top: 10px;">
                         <select id="role-select">
                             <option value="student">Student</option>
                             <option value="teacher">Teacher (Guide)</option>
@@ -361,28 +399,36 @@
                     </div>
                 </div>
 
-                <a style="font-size: 0.8rem; color: var(--color-pebble); cursor: pointer; text-decoration: underline; display: block; margin-top: 15px;" onclick="toggleManual()">Manual Override</a>
+                <a style="font-size: 0.8rem; color: var(--color-pebble); cursor: pointer; text-decoration: underline; display: block; margin-top: 20px;" onclick="toggleManual()">Manual Override</a>
             </div>
         </div>
 
         <!-- 2. MAIN APP SCREEN -->
         <div id="app-screen" class="hidden">
             <div id="top-bar">
-                <span id="display-room" style="font-weight: bold; color: var(--color-stone);">Room</span>
-                <span style="font-size: 0.9rem;">Connected as: <span id="display-name" style="color: var(--color-sage);">User</span></span>
+                <div style="display: flex; align-items: center;">
+                    <!-- Sidebar Toggle (Mobile Only) -->
+                    <button id="sidebar-toggle" onclick="toggleSidebar()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <div>
+                        <span id="display-room" style="font-weight: bold; color: var(--color-stone);">Room</span>
+                        <br>
+                        <span style="font-size: 0.75rem; color: var(--color-pebble);">As: <span id="display-name" style="color: var(--color-sage);">User</span></span>
+                    </div>
+                </div>
                 <button onclick="signOut()" class="btn-danger">Leave</button>
             </div>
             
-            <div style="background: var(--color-sage); color: white; padding: 5px; text-align: center; font-size: 0.8rem;">
-                Speaking to: <span id="target-display" style="font-weight:bold; font-family: 'Playfair Display', serif; letter-spacing: 1px;">THE WHOLE GROUP</span>
+            <div style="background: var(--color-sage); color: white; padding: 5px; text-align: center; font-size: 0.75rem;">
+                To: <span id="target-display" style="font-weight:bold; font-family: 'Playfair Display', serif; letter-spacing: 1px;">THE WHOLE GROUP</span>
             </div>
 
             <div id="chat-interface">
                 <!-- Left Sidebar: Users -->
                 <div id="user-sidebar">
                     <div class="user-item selected" onclick="selectUser('ALL')">
-                        <!-- Icon: Users -->
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         Everyone
                     </div>
                     <div style="height: 1px; background: rgba(0,0,0,0.1); margin: 10px 0;"></div>
@@ -391,7 +437,7 @@
 
                 <!-- Right Side: Messages -->
                 <div id="message-area">
-                    <div id="msg-feed"></div>
+                    <div id="msg-feed" onclick="closeSidebarMobile()"></div>
                     
                     <div id="input-area">
                         <!-- Hidden File Input -->
@@ -405,7 +451,7 @@
                         <input type="text" id="msg-input" placeholder="Share a thought..." onkeydown="if(event.key==='Enter') sendMessage()">
                         
                         <!-- Send Button -->
-                        <button class="icon-btn" onclick="sendMessage()" title="Send" style="background-color: var(--color-sage); color: white; border-radius: 50%; padding: 10px; width: 40px; height: 40px;">
+                        <button class="icon-btn" onclick="sendMessage()" title="Send" style="background-color: var(--color-sage); color: white;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                         </button>
                     </div>
@@ -421,7 +467,7 @@
 
     <script>
         // =================================================================
-        // FIREBASE CONFIGURATION (PRESERVED)
+        // FIREBASE CONFIGURATION
         // =================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA_5r6DAUKkYv5TFP9XM3K3SnRBtmdUS0g",
@@ -458,7 +504,6 @@
             const isTeacher = urlParams.get('teacher') === 'true';
             if (isTeacher) {
                 currentUser.role = 'teacher';
-                // Subtle indicator for admin
                 document.getElementById("login-screen").querySelector('h2').innerText += " (Guide Mode)";
                 toggleManual();
             }
@@ -475,7 +520,6 @@
                     document.getElementById("username").value = user.displayName;
                 } else {
                     authUserObject = null;
-                    // Reset button content to default
                     btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Sign In with Google`;
                     btn.style.color = "#444";
                     btn.style.borderColor = "#ddd";
@@ -486,11 +530,15 @@
         // --- UI FUNCTIONS ---
         function toggleManual() {
             const area = document.getElementById("manual-login-area");
-            if (area.classList.contains("hidden")) {
-                area.classList.remove("hidden");
-            } else {
-                area.classList.add("hidden");
-            }
+            area.classList.toggle("hidden");
+        }
+
+        function toggleSidebar() {
+            document.getElementById("user-sidebar").classList.toggle("open");
+        }
+
+        function closeSidebarMobile() {
+            document.getElementById("user-sidebar").classList.remove("open");
         }
 
         // --- AUTH FLOW ---
@@ -588,9 +636,9 @@
                         div.className = "user-item";
                         
                         // Icon logic
-                        let icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+                        let icon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
                         if(uData.role === 'teacher') {
-                            icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A373" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`;
+                            icon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A373" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`;
                         }
 
                         div.innerHTML = `${icon} <span>${uName}</span>`;
@@ -600,6 +648,7 @@
                             document.getElementById("target-display").innerText = uName.toUpperCase();
                             document.querySelectorAll(".user-item").forEach(el => el.classList.remove("selected"));
                             div.classList.add("selected");
+                            closeSidebarMobile(); // Auto close on selection
                         };
                         listDiv.appendChild(div);
                     }
@@ -657,15 +706,10 @@
                     const isAdmin = msg.role === 'teacher';
                     const isSelf = msg.sender === currentUser.name;
                     
-                    // Determine Styling Class
                     let classes = "msg";
-                    if (isAdmin) {
-                        classes += " admin";
-                    } else if (isSelf) {
-                        classes += " self";
-                    } else {
-                        classes += " student";
-                    }
+                    if (isAdmin) classes += " admin";
+                    else if (isSelf) classes += " self";
+                    else classes += " student";
                     
                     if (isPrivate) classes += " private";
 
@@ -675,7 +719,6 @@
                     if(isPrivate) meta += ` (Whisper to ${msg.recipient})`;
                     if(isAdmin) meta = `Guide ${msg.sender}`;
 
-                    // --- CONTENT RENDERING ---
                     let contentHtml = "";
                     if (msg.image) contentHtml += `<img src="${msg.image}" class="chat-image">`;
                     if (msg.text) contentHtml += `<div>${msg.text}</div>`;
@@ -704,3 +747,5 @@
     </script>
 </body>
 </html>
+
+
