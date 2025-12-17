@@ -210,26 +210,6 @@
             font-family: 'Playfair Display', serif;
         }
         
-        /* Bell Icon Logic */
-        #notification-bell {
-            margin-right: 15px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-        #notification-bell:hover { background-color: rgba(0,0,0,0.05); }
-        /* Default: Gray (Unknown) */
-        #notification-bell svg { stroke: var(--color-pebble); fill: none; }
-        /* Active: Green */
-        #notification-bell.active svg { stroke: var(--color-sage); fill: rgba(124, 144, 130, 0.2); }
-        /* Blocked: Red/Strike */
-        #notification-bell.blocked svg { stroke: var(--color-alert); opacity: 0.5; }
-
         #chat-interface {
             display: flex;
             flex-grow: 1;
@@ -471,11 +451,9 @@
             <div id="admin-toolbar" class="hidden">
                 <span><strong>Guide Controls</strong></span>
                 <div class="admin-controls">
-                    <button class="btn-admin" onclick="toggleFreezeRoom()" id="freeze-btn">❄️ Freeze Chat</button>
-                    <button class="btn-admin" onclick="downloadChat()">⬇️ Save History</button>
-                    <button class="btn-admin" onclick="dissolveRoom()" style="border-color: var(--color-alert); color: var(--color-alert);">⚠️ Clear Room</button>
-                    <!-- NEW TEST BUTTON -->
-                    <button class="btn-admin" onclick="sendTestNotification()">🔔 Test Ping</button>
+                    <button class="btn-admin" onclick="toggleFreezeRoom()" id="freeze-btn">❉ Freeze Chat</button>
+                    <button class="btn-admin" onclick="downloadChat()">⇩ Save History</button>
+                    <button class="btn-admin" onclick="dissolveRoom()" style="border-color: var(--color-alert); color: var(--color-alert);">✕ Clear Room</button>
                 </div>
             </div>
 
@@ -486,11 +464,6 @@
                 </div>
                 
                 <div style="display:flex; align-items: center; gap: 15px;">
-                    <!-- Notification Bell -->
-                    <div id="notification-bell" onclick="requestNotify()" title="Enable Notifications">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                    </div>
-
                     <span style="font-size: 0.9rem;">Connected as: <span id="display-name" style="color: var(--color-sage);">User</span></span>
                     <button onclick="signOut()" class="btn-danger">Leave</button>
                 </div>
@@ -639,9 +612,6 @@
                      picker.classList.add("hidden");
                  }
             });
-
-            // Initialize Notification Status UI
-            updateBellIcon();
         };
 
         // --- UI FUNCTIONS ---
@@ -660,48 +630,6 @@
             document.getElementById("emoji-picker").classList.add("hidden");
             input.focus();
         }
-
-        // --- NOTIFICATION LOGIC (NEW) ---
-        function updateBellIcon() {
-            const bell = document.getElementById("notification-bell");
-            bell.className = ""; // Reset
-            
-            if (Notification.permission === "granted") {
-                bell.classList.add("active");
-                bell.title = "Notifications Active";
-            } else if (Notification.permission === "denied") {
-                bell.classList.add("blocked");
-                bell.title = "Notifications Blocked (Check Browser Settings)";
-            } else {
-                bell.title = "Enable Notifications";
-            }
-        }
-
-        function requestNotify() {
-            if (Notification.permission === "default") {
-                Notification.requestPermission().then(permission => {
-                    updateBellIcon();
-                    if (permission === "granted") {
-                        new Notification("Joli Chat", { body: "Notifications enabled!" });
-                    }
-                });
-            } else if (Notification.permission === "denied") {
-                alert("Notifications are blocked by your browser settings. Look for the Lock icon or Bell icon in the address bar to unblock them.");
-            }
-        }
-
-        function sendTestNotification() {
-             // Admin tool to verify OS capability
-             if (Notification.permission === "granted") {
-                 setTimeout(() => {
-                     new Notification("Test Ping", { body: "If you see this, it works!" });
-                 }, 3000); // 3 second delay so you can switch tabs to test background
-                 alert("Sending test ping in 3 seconds... Switch tabs now!");
-             } else {
-                 alert("Permission not granted yet.");
-             }
-        }
-
 
         // --- AUTH FLOW ---
         function handleGoogleFlow() {
@@ -731,11 +659,6 @@
             const room = document.getElementById("room-code").value.trim();
             
             if(!name || !room) return alert("Please enter your name and room.");
-
-            // Request Notification Permission on User Interaction (Login Click)
-            if (Notification.permission === 'default') {
-                Notification.requestPermission().then(() => updateBellIcon());
-            }
 
             // Determine Status
             let status = 'pending';
@@ -860,7 +783,7 @@
                     }
                 } else {
                     freezeBadge.style.display = "none";
-                    if (freezeBtn) freezeBtn.innerText = "❄️ Freeze Chat";
+                    if (freezeBtn) freezeBtn.innerText = "❉ Freeze Chat";
                     inputArea.classList.remove("frozen");
                     document.getElementById("msg-input").disabled = false;
                 }
@@ -1003,24 +926,6 @@
                     div.innerHTML = `<span class="msg-meta">${meta}</span>${contentHtml}`;
                     feed.appendChild(div);
                     feed.scrollTop = feed.scrollHeight; 
-
-                    // --- NOTIFICATIONS ---
-                    // Log for debugging
-                    console.log("Checking notification...", { hidden: document.hidden, permission: Notification.permission, isSelf });
-                    
-                    if (document.hidden && Notification.permission === "granted") {
-                        // Only notify if message is NOT from me
-                        if (!isSelf) {
-                            try {
-                                new Notification(`Joli Chat: ${msg.sender}`, {
-                                    body: msg.text || "Sent an image",
-                                    icon: "https://via.placeholder.com/64" // Optional placeholder
-                                });
-                            } catch (e) {
-                                console.error("Notification failed", e);
-                            }
-                        }
-                    }
                 }
             });
             msgsRef.on('child_removed', (snapshot) => { document.getElementById("msg-feed").innerHTML = ""; });
