@@ -68,9 +68,9 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 20px; /* Reduced padding */
+            padding: 20px; 
             background: linear-gradient(135deg, #fff 0%, var(--bg-canvas) 100%);
-            overflow-y: auto; /* Allow scrolling on small screens */
+            overflow-y: auto; 
         }
 
         h2 {
@@ -657,6 +657,11 @@
             
             if(!name || !room) return alert("Please enter your name and room.");
 
+            // Request Notification Permission on User Interaction
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
             // Determine Status
             let status = 'pending';
             if (isGoogle) status = 'approved';
@@ -923,6 +928,17 @@
                     div.innerHTML = `<span class="msg-meta">${meta}</span>${contentHtml}`;
                     feed.appendChild(div);
                     feed.scrollTop = feed.scrollHeight; 
+
+                    // --- NOTIFICATIONS ---
+                    if (document.hidden && Notification.permission === "granted") {
+                        // Only notify if message is NOT from me
+                        if (!isSelf) {
+                            new Notification(`Joli Chat: ${msg.sender}`, {
+                                body: msg.text || "Sent an image",
+                                icon: "https://via.placeholder.com/64" // Optional placeholder
+                            });
+                        }
+                    }
                 }
             });
             msgsRef.on('child_removed', (snapshot) => { document.getElementById("msg-feed").innerHTML = ""; });
@@ -982,7 +998,8 @@
                     textContent += `[${time}] ${sender}: ${content}\r\n`;
                 });
 
-                const blob = new Blob([textContent], { type: 'text/plain' });
+                // Add BOM for UTF-8 compatibility
+                const blob = new Blob(['\uFEFF' + textContent], { type: 'text/plain;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
