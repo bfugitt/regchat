@@ -675,6 +675,7 @@
         let authUserObject = null;
         let isFrozen = false; 
         let usersData = {}; // Store for admin lookups
+        let heartbeatInterval = null;
 
         // --- ON LOAD ---
         window.onload = function() {
@@ -866,6 +867,7 @@
 
             // START PRESENCE SYSTEM (Fixes ghosting on mobile sleep/wake)
             setupPresenceSystem();
+            startHeartbeat(); // NEW: Fixes "Ghost" users who think they are in but aren't on server
 
             listenForMessages();
             listenForUsers();
@@ -897,12 +899,37 @@
             });
         }
 
+        // --- NEW: HEARTBEAT (GHOST USER FIX) ---
+        function startHeartbeat() {
+            // Every 10 seconds, check if I exist in the room. If not, write me back.
+            heartbeatInterval = setInterval(() => {
+                if (!currentUser.room || !currentUser.name) return;
+                
+                const userRef = db.ref(`rooms/${currentUser.room}/users/${currentUser.name}`);
+                userRef.get().then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        console.log("Heartbeat: Restoring missing user...");
+                        userRef.set({ 
+                            role: currentUser.role, 
+                            status: currentUser.status,
+                            lastSeen: Date.now() 
+                        });
+                        userRef.onDisconnect().remove();
+                    } else {
+                        // Update lastSeen to prove we are active
+                        userRef.update({ lastSeen: Date.now() });
+                    }
+                });
+            }, 10000); // 10 seconds
+        }
+
         function signOut() {
             if(currentUser.name && currentUser.room) {
                 db.ref(`rooms/${currentUser.room}/users/${currentUser.name}`).remove();
             }
             dbListeners.forEach(ref => ref.off());
             dbListeners = [];
+            if(heartbeatInterval) clearInterval(heartbeatInterval);
             
             document.getElementById("msg-feed").innerHTML = "";
             document.getElementById("dynamic-user-list").innerHTML = "";
@@ -944,6 +971,9 @@
                     signOut();
                     return;
                 }
+
+                // Update local status just in case heartbeat needs it
+                if(data.status) currentUser.status = data.status;
 
                 // Check Muted Status
                 const inputArea = document.getElementById("input-area");
@@ -1173,6 +1203,12 @@
             dbListeners.push(msgsRef);
             msgsRef.limitToLast(100).on('child_added', (snapshot) => {
                 const msg = snapshot.val();
+                const feed = document.getElementById("msg-feed");
+                
+                // --- SMART SCROLL LOGIC ---
+                // Calculate if user is currently at the bottom (with 100px buffer)
+                const isAtBottom = feed.scrollHeight - feed.scrollTop <= feed.clientHeight + 100;
+
                 let show = false;
                 if (currentUser.role === 'teacher') show = true; 
                 else if (msg.sender === currentUser.name) show = true; 
@@ -1180,7 +1216,6 @@
                 else if (msg.recipient === currentUser.name) show = true; 
 
                 if (show) {
-                    const feed = document.getElementById("msg-feed");
                     const div = document.createElement("div");
                     const isPrivate = msg.recipient !== 'ALL';
                     const isAdmin = msg.role === 'teacher';
@@ -1203,7 +1238,11 @@
 
                     div.innerHTML = `<span class="msg-meta">${meta}</span>${contentHtml}`;
                     feed.appendChild(div);
-                    feed.scrollTop = feed.scrollHeight; 
+                    
+                    // Only scroll if they were already at the bottom or if it's their own message
+                    if (isAtBottom || isSelf) {
+                        feed.scrollTop = feed.scrollHeight; 
+                    }
                 }
             });
             msgsRef.on('child_removed', (snapshot) => { document.getElementById("msg-feed").innerHTML = ""; });
