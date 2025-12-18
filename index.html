@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Joli Chat</title>
     
     <!-- Reggio Fonts -->
@@ -28,6 +28,8 @@
             --radius-small: 12px;
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Lato', sans-serif;
             background-color: var(--bg-canvas);
@@ -39,7 +41,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
         }
 
         .hidden { display: none !important; }
@@ -201,19 +204,34 @@
 
         #top-bar {
             height: 50px;
+            min-height: 50px;
             background-color: rgba(255,255,255,0.8);
             border-bottom: 1px solid rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 15px;
             font-family: 'Playfair Display', serif;
+            z-index: 2000; /* Above sidebar */
         }
         
+        /* Mobile Menu Toggle */
+        #menu-toggle {
+            display: none; /* Hidden on desktop */
+            background: none;
+            border: none;
+            color: var(--color-stone);
+            font-size: 1.5rem;
+            padding: 0 10px 0 0;
+            box-shadow: none;
+            cursor: pointer;
+        }
+
         #chat-interface {
             display: flex;
             flex-grow: 1;
             overflow: hidden;
+            position: relative; /* For absolute sidebar on mobile */
         }
 
         /* Sidebar */
@@ -225,6 +243,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            transition: transform 0.3s ease;
         }
 
         .section-header {
@@ -286,6 +305,7 @@
             display: flex;
             flex-direction: column;
             background-color: var(--bg-paper);
+            width: 100%; /* Ensure full width when sidebar hidden */
         }
 
         #msg-feed {
@@ -325,6 +345,7 @@
             align-items: center;
             gap: 8px;
             position: relative;
+            min-height: 60px; /* Ensure clickable area */
         }
         
         #input-area.frozen::after {
@@ -388,6 +409,47 @@
             box-shadow: none;
         }
         .emoji-btn:hover { background: var(--bg-canvas); transform: scale(1.2); }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            body { padding: 0; height: 100dvh; } /* Full viewport height */
+            
+            .window-container {
+                width: 100%;
+                height: 100%;
+                max-width: none;
+                border-radius: 0;
+                border: none;
+            }
+
+            #menu-toggle { display: block; } /* Show Hamburger */
+
+            #user-sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                z-index: 1000;
+                transform: translateX(-100%); /* Hide by default */
+                background-color: rgba(242, 240, 233, 0.98); /* Solid-ish background */
+                box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+                width: 80%; /* Almost full width */
+                max-width: 300px;
+            }
+
+            #user-sidebar.open {
+                transform: translateX(0); /* Slide in */
+            }
+
+            /* Adjust Input for thumb typing */
+            #input-area { padding: 10px; }
+            #msg-input { font-size: 16px; } /* Prevents iOS zoom */
+            
+            /* Hide connection text on very small screens to save space */
+            #top-bar span[style*="font-size: 0.9rem"] {
+                display: none;
+            }
+        }
 
     </style>
 </head>
@@ -459,6 +521,9 @@
 
             <div id="top-bar">
                 <div style="display:flex; align-items:center; gap: 10px;">
+                    <!-- MOBILE MENU TOGGLE -->
+                    <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+                    
                     <span id="display-room" style="font-weight: bold; color: var(--color-stone);">Room</span>
                     <span id="freeze-badge" class="frozen-status">FROZEN</span>
                 </div>
@@ -611,6 +676,12 @@
                  if (!picker.contains(e.target) && !btn.contains(e.target)) {
                      picker.classList.add("hidden");
                  }
+                 // Close Sidebar if clicked outside on mobile
+                 const sidebar = document.getElementById("user-sidebar");
+                 const menuToggle = document.getElementById("menu-toggle");
+                 if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                     sidebar.classList.remove("open");
+                 }
             });
         };
 
@@ -629,6 +700,12 @@
             input.value += emoji;
             document.getElementById("emoji-picker").classList.add("hidden");
             input.focus();
+        }
+
+        // --- MOBILE MENU TOGGLE ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById("user-sidebar");
+            sidebar.classList.toggle("open");
         }
 
         // --- AUTH FLOW ---
@@ -841,6 +918,8 @@
                             div.onclick = () => {
                                 selectUser(uName); 
                                 div.classList.add("selected");
+                                // Close menu on selection on mobile
+                                if (window.innerWidth <= 768) toggleSidebar();
                             };
                             listDiv.appendChild(div);
                         }
@@ -862,7 +941,10 @@
             const display = targetName === 'ALL' ? "THE WHOLE GROUP" : targetName.toUpperCase();
             document.getElementById("target-display").innerText = display;
             document.querySelectorAll(".user-item").forEach(el => el.classList.remove("selected"));
-            if (targetName === 'ALL') document.getElementById("all-users-btn").classList.add("selected");
+            if (targetName === 'ALL') {
+                const allBtn = document.getElementById("all-users-btn");
+                if(allBtn) allBtn.classList.add("selected");
+            }
         }
 
         function handleFileSelect() {
