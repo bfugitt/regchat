@@ -94,12 +94,20 @@
             font-style: italic;
             color: #666;
             line-height: 1.5;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
 
         .kindness-note strong {
             color: var(--color-clay);
             font-family: 'Playfair Display', serif;
+        }
+        
+        .verse-ref {
+            display: block;
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: var(--color-sage);
+            font-weight: bold;
         }
 
         /* Inputs */
@@ -354,12 +362,13 @@
             min-height: 60px; /* Ensure clickable area */
         }
         
-        /* Frozen / Muted States */
+        /* Frozen / Muted / Absent States */
         #input-area.frozen::after,
-        #input-area.muted::after {
+        #input-area.muted::after,
+        #input-area.absent::after {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.95);
             color: var(--color-sage);
             display: flex;
             align-items: center;
@@ -367,9 +376,12 @@
             font-weight: bold;
             font-family: 'Playfair Display', serif;
             z-index: 10;
+            text-align: center;
+            padding: 0 20px;
         }
         #input-area.frozen::after { content: "The room is currently paused for listening."; }
         #input-area.muted::after { content: "Your voice is currently paused by the Guide."; color: var(--color-stone); }
+        #input-area.absent::after { content: "The Guide has stepped away. Room is waiting."; color: var(--color-clay); }
 
         #msg-input {
             flex-grow: 1;
@@ -472,10 +484,12 @@
             <p style="margin-bottom: 15px; color: var(--color-pebble); font-size: 0.9rem;">Digital Atelier Connection</p>
 
             <div class="kindness-note">
-                <p>Welcome, friend.</p>
-                <p>Remember that our digital space is a reflection of our classroom.</p>
-                <p><strong>Everything written here is observed and recorded.</strong></p>
-                <p>Please speak with love, listen with kindness, and share with compassion.</p>
+                <p style="margin-top:0;">Welcome, friend.</p>
+                <div id="daily-quote" style="margin: 10px 0; font-family: 'Playfair Display', serif; color: var(--color-stone);">
+                    <!-- Random Quote Injected Here -->
+                </div>
+                <p>Remember: <strong>Everything here is observed and recorded.</strong></p>
+                <p style="margin-bottom:0;">Please speak with love, listen with kindness, and share with compassion.</p>
             </div>
             
             <div id="login-form">
@@ -643,6 +657,17 @@
         const db = firebase.database();
         const auth = firebase.auth();
 
+        // --- BIBLE QUOTES ---
+        const bibleQuotes = [
+            { text: "Be kind and compassionate to one another, forgiving each other, just as in Christ God forgave you.", ref: "Ephesians 4:32" },
+            { text: "Love is patient, love is kind. It does not envy, it does not boast, it is not proud.", ref: "1 Corinthians 13:4" },
+            { text: "Therefore, as God’s chosen people, holy and dearly loved, clothe yourselves with compassion, kindness, humility, gentleness and patience.", ref: "Colossians 3:12" },
+            { text: "Do to others as you would have them do to you.", ref: "Luke 6:31" },
+            { text: "Gracious words are a honeycomb, sweet to the soul and healing to the bones.", ref: "Proverbs 16:24" },
+            { text: "Let all that you do be done in love.", ref: "1 Corinthians 16:14" },
+            { text: "A kind gesture can reach a wound that only compassion can heal.", ref: "Steve Maraboli (Inspired)" } // Added a placeholder for custom ones
+        ];
+
         // --- STATE ---
         let currentUser = { name: "", room: "", role: "student", status: "pending" }; 
         let selectedTarget = "ALL";
@@ -653,8 +678,11 @@
 
         // --- ON LOAD ---
         window.onload = function() {
+            // 1. Display Quote
+            displayRandomQuote();
+
+            // 2. Parse URL
             const urlParams = new URLSearchParams(window.location.search);
-            
             const roomParam = urlParams.get('room');
             if (roomParam) {
                 const roomInput = document.getElementById("room-code");
@@ -669,6 +697,7 @@
                 toggleManual();
             }
 
+            // 3. Auth Listener
             auth.onAuthStateChanged((user) => {
                 const btn = document.getElementById("google-btn");
                 if (user) {
@@ -704,6 +733,13 @@
         };
 
         // --- UI FUNCTIONS ---
+        function displayRandomQuote() {
+            const randomIndex = Math.floor(Math.random() * bibleQuotes.length);
+            const quote = bibleQuotes[randomIndex];
+            const container = document.getElementById('daily-quote');
+            container.innerHTML = `"${quote.text}" <span class="verse-ref">${quote.ref}</span>`;
+        }
+
         function toggleManual() {
             const area = document.getElementById("manual-login-area");
             area.classList.toggle("hidden");
@@ -900,7 +936,7 @@
             
             myRef.on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (!data) return; // User might be temporarily missing during reconnect
+                if (!data) return; 
 
                 // Check Ejected Status
                 if (data.status === 'ejected') {
@@ -915,10 +951,13 @@
                 
                 if (data.muted === true) {
                     inputArea.classList.add("muted");
+                    inputArea.classList.remove("frozen"); // Priority
+                    inputArea.classList.remove("absent");
                     msgInput.disabled = true;
-                } else if (!isFrozen) { // Only unmute if room isn't frozen
+                } else {
                     inputArea.classList.remove("muted");
-                    msgInput.disabled = false;
+                    // Only re-enable if not frozen by room state or teacher absence
+                    checkGlobalLockState(); 
                 }
             });
         }
@@ -928,27 +967,17 @@
             dbListeners.push(stateRef);
             stateRef.on('value', (snapshot) => {
                 isFrozen = snapshot.val() === true;
-                const inputArea = document.getElementById("input-area");
                 const freezeBadge = document.getElementById("freeze-badge");
                 const freezeBtn = document.getElementById("freeze-btn");
 
                 if (isFrozen) {
                     freezeBadge.style.display = "inline-block";
                     if (freezeBtn) freezeBtn.innerText = "🔥 Unfreeze";
-                    if (currentUser.role === 'student') {
-                        inputArea.classList.add("frozen");
-                        document.getElementById("msg-input").disabled = true;
-                    }
                 } else {
                     freezeBadge.style.display = "none";
                     if (freezeBtn) freezeBtn.innerText = "❉ Freeze Room";
-                    // Only re-enable if not individually muted (handled by listenToMyProfile mostly)
-                    // But we remove the 'frozen' class
-                    inputArea.classList.remove("frozen");
-                    if (!document.getElementById("input-area").classList.contains("muted")) {
-                        document.getElementById("msg-input").disabled = false;
-                    }
                 }
+                checkGlobalLockState();
             });
         }
 
@@ -967,6 +996,7 @@
                 pendingDiv.innerHTML = "";
                 
                 let hasPending = false;
+                let teacherPresent = false;
                 
                 // If selected user still exists, update UI button text
                 if (selectedTarget !== 'ALL' && usersData[selectedTarget]) {
@@ -976,6 +1006,9 @@
                 snapshot.forEach((child) => {
                     const uName = child.key;
                     const uData = child.val();
+                    
+                    // Check for teacher
+                    if (uData.role === 'teacher') teacherPresent = true;
                     
                     if(uName !== currentUser.name) {
                         
@@ -1027,7 +1060,47 @@
                 } else {
                     pendingSection.classList.add("hidden");
                 }
+
+                // Handle Teacher Absence (Auto-Freeze)
+                handleTeacherPresence(teacherPresent);
             });
+        }
+
+        // --- STATE MANAGEMENT HELPER ---
+        function handleTeacherPresence(isPresent) {
+            const inputArea = document.getElementById("input-area");
+            
+            if (currentUser.role === 'teacher') return; // Teachers ignore this
+
+            if (!isPresent) {
+                // Force Absent State
+                inputArea.classList.add("absent");
+                document.getElementById("msg-input").disabled = true;
+            } else {
+                inputArea.classList.remove("absent");
+                checkGlobalLockState(); // Re-evaluate other locks
+            }
+        }
+
+        function checkGlobalLockState() {
+            // Priority: Muted > Absent > Frozen > Open
+            const inputArea = document.getElementById("input-area");
+            const msgInput = document.getElementById("msg-input");
+            
+            // If already muted or absent, those take precedence, so only check if neither is active
+            if (inputArea.classList.contains("muted") || inputArea.classList.contains("absent")) {
+                msgInput.disabled = true;
+                return;
+            }
+
+            // Check Freeze State
+            if (currentUser.role === 'student' && isFrozen) {
+                inputArea.classList.add("frozen");
+                msgInput.disabled = true;
+            } else {
+                inputArea.classList.remove("frozen");
+                msgInput.disabled = false;
+            }
         }
 
         // --- STANDARD APP FUNCTIONS ---
