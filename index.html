@@ -764,15 +764,6 @@
         }
 
         function processLoginStep() {
-            // Write User Data
-            const userRef = db.ref(`rooms/${currentUser.room}/users/${currentUser.name}`);
-            userRef.set({ 
-                role: currentUser.role, 
-                status: currentUser.status,
-                lastSeen: Date.now() 
-            });
-            userRef.onDisconnect().remove();
-
             if (currentUser.status === 'approved') {
                 proceedToApp();
             } else {
@@ -795,6 +786,15 @@
                     proceedToApp();
                 }
             });
+            
+            // Initial write for pending user
+            const userRef = db.ref(`rooms/${currentUser.room}/users/${currentUser.name}`);
+            userRef.set({ 
+                role: currentUser.role, 
+                status: 'pending',
+                lastSeen: Date.now() 
+            });
+            userRef.onDisconnect().remove();
         }
 
         function proceedToApp() {
@@ -810,9 +810,36 @@
                 document.getElementById("admin-toolbar").classList.remove("hidden");
             }
 
+            // START PRESENCE SYSTEM (Fixes ghosting on mobile sleep/wake)
+            setupPresenceSystem();
+
             listenForMessages();
             listenForUsers();
             listenForRoomState(); 
+        }
+
+        function setupPresenceSystem() {
+            // Monitor connection state
+            const connectedRef = db.ref(".info/connected");
+            const userRef = db.ref(`rooms/${currentUser.room}/users/${currentUser.name}`);
+            
+            // Add to listeners for cleanup
+            dbListeners.push(connectedRef);
+
+            connectedRef.on("value", (snap) => {
+                if (snap.val() === true) {
+                    // We are connected (or reconnected)!
+                    // 1. Write our name to the list
+                    userRef.set({ 
+                        role: currentUser.role, 
+                        status: currentUser.status,
+                        lastSeen: Date.now() 
+                    });
+                    
+                    // 2. Tell server to delete us if we disconnect again
+                    userRef.onDisconnect().remove();
+                }
+            });
         }
 
         function signOut() {
